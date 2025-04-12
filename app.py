@@ -3,7 +3,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from pinecone import Pinecone
-
+import openai
 # Import config variables and utility functions
 import config
 from utils.embedder import generate_embedding

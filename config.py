@@ -6,7 +6,7 @@ import os
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY", "")
 # Pinecone environment might be needed depending on specific client usage or future needs
 PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT") # Replace if needed
-INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "") # Set default 'mind' or load from env
+INDEX_NAME = os.getenv("INDEX_NAME", "") # Set default 'mind' or load from env
 NAMESPACE = os.getenv("PINECONE_NAMESPACE", "") # Default to empty namespace
 
 # --- OpenAI Configuration ---

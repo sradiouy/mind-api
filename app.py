@@ -3,7 +3,7 @@ import os
 import sys # Added for potentially flushing output
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from pinecone import Pinecone, ApiException # Added ApiException
+from pinecone import Pinecone
 import openai # Added openai
 
 # Import config variables and utility functions
@@ -99,9 +99,6 @@ def rag_query_endpoint():
     except openai.APIError as e:
         print(f"OpenAI API Error: {e}")
         return jsonify({"error": f"OpenAI API Error: {e}"}), 500
-    except ApiException as e: # Make sure ApiException is imported
-        print(f"Pinecone API Error: {e}")
-        return jsonify({"error": f"Pinecone API Error: {e}"}), 500
     except Exception as e:
         print(f"Unexpected error processing query: {e}")
         return jsonify({"error": "An internal server error occurred"}), 500

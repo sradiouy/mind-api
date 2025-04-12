@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment folders
+venv/
+.venv/
+env/
+.env/
+venv*/
+.venv*/
+
+# Environment variables file
+.env*
+
+# IDE / Editor specific files
+.idea/
+.vscode/
+*.swp
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Data files (Optional - add if you don't want to commit your specific data outputs)
+# data/
+# *.csv
+# *.json

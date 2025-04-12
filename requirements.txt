@@ -1,0 +1,12 @@
+flask
+flask-cors
+openai
+pinecone
+biopython
+beautifulsoup4
+lxml
+pandas
+tiktoken
+requests
+tqdm
+PyPDF2

@@ -10,3 +10,4 @@ tiktoken
 requests
 tqdm
 PyPDF2
+gunicorn

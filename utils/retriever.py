@@ -1,5 +1,5 @@
 # utils/retriever.py
-from pinecone import Pinecone # <--- Quitamos ApiException de aquí
+from pinecone import Pinecone
 import config
 
 # (Asumimos que pinecone_index se pasa desde app.py)

@@ -1,45 +1,47 @@
 # utils/retriever.py
-from pinecone import Pinecone
-from config import INDEX_NAME, NAMESPACE, TOP_K # Import from config
+from pinecone import Pinecone # <--- Quitamos ApiException de aquí
+import config
 
-# Pinecone client can be initialized here or passed from app.py
-# If initialized here, you'd need PINECONE_API_KEY from config too.
-# Let's assume it's passed from app.py for this example to avoid multiple initializations.
+# (Asumimos que pinecone_index se pasa desde app.py)
 
-def query_pinecone(index: Pinecone.Index, query_vector: list[float]) -> list[dict]:
+def query_pinecone(index: Pinecone.Index, query_vector: list[float], module_filter: str | None = None) -> list[dict]:
     """
-    Queries the Pinecone index and returns formatted results.
+    Queries the Pinecone index, optionally filtering by module,
+    and returns formatted results.
     """
     if not query_vector:
-        return [] # Return empty list if no vector provided
+        return []
+
+    filter_dict = None
+    if module_filter and isinstance(module_filter, str) and module_filter.strip():
+        filter_dict = {"module": module_filter.strip()}
+        print(f"DEBUG RETRIEVER: Applying Pinecone filter: {filter_dict}")
+    else:
+        print("DEBUG RETRIEVER: No module filter applied, searching all modules.")
 
     try:
         result = index.query(
             vector=query_vector,
-            namespace=NAMESPACE, # Use namespace from config
-            top_k=TOP_K,         # Use top_k from config
-            include_metadata=True
+            namespace=config.NAMESPACE,
+            top_k=config.TOP_K,
+            include_metadata=True,
+            filter=filter_dict
         )
 
-        # Format matches
         matches = []
         for match in result.matches:
-            metadata = match.metadata or {} # Ensure metadata exists
+            metadata = match.metadata or {}
             matches.append({
-                "id": match.id, # Include the vector ID
+                "id": match.id,
                 "score": match.score,
-                "text": metadata.get("text", ""), # Safely get text
-                "source": metadata.get("source", "unknown"), # Safely get source
-                "module": metadata.get("module", "unknown"), # Example: include module
-                # Add any other metadata fields you want to return
-                # "topic": metadata.get("topic", "unknown"),
-                # "tags": metadata.get("tags", []),
+                "text": metadata.get("text", ""),
+                "source": metadata.get("source", "unknown"),
+                "module": metadata.get("module", "unknown"),
             })
         return matches
-    except ApiException as e:
-        print(f"Pinecone API Error during query: {e}")
-        # Depending on desired API behavior, re-raise or return error indicator
-        raise e # Re-raise to be caught by Flask error handler
-    except Exception as e:
-        print(f"Unexpected error during query: {e}")
-        raise e
+    # except ApiException as e: <-- BLOQUE ELIMINADO
+    #     print(f"Pinecone API Error during query: {e}")
+    #     raise e
+    except Exception as e: # <-- Este bloque atrapará ahora también los errores de Pinecone
+        print(f"Unexpected error during query (may include Pinecone errors): {e}")
+        raise e # Re-lanza para que lo atrape el manejador de Flask

@@ -20,6 +20,7 @@ TOP_K = 10 # Number of results to retrieve from Pinecone
 # --- Flask Configuration (Optional) ---
 # Example: For production, you'd set DEBUG=False
 #DEBUG_MODE = os.getenv("FLASK_DEBUG", "True").lower() in ['true', '1', 't'] # Default to True for dev
+DEBUG_MODE = os.getenv("FLASK_DEBUG", "False")
 
 # --- Input/Output Data Paths (Optional) ---
 # Example if you move data files

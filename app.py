@@ -1,63 +1,77 @@
 # app.py
 import os
+import sys # Added for potentially flushing output
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from pinecone import Pinecone
-import openai
+from pinecone import Pinecone, ApiException # Added ApiException
+import openai # Added openai
+
 # Import config variables and utility functions
-import config
+import config # <-- Imports config.py and executes it
 from utils.embedder import generate_embedding
 from utils.retriever import query_pinecone
 
-# === VALIDATE CONFIGURATION ===
+# === DEBUG: Configuration Values ===
+# Let's print the values RIGHT AFTER config is imported to see what the app sees
+print("--- STARTING CONFIGURATION DEBUG ---")
+print(f"DEBUG CONFIG: PINECONE_API_KEY Loaded = {bool(config.PINECONE_API_KEY)}") # Just check if it exists
+print(f"DEBUG CONFIG: OPENAI_API_KEY Loaded = {bool(config.OPENAI_API_KEY)}") # Just check if it exists
+# Print the value that's causing the error, using repr() to show quotes and type
+print(f"DEBUG CONFIG: INDEX_NAME = {repr(config.INDEX_NAME)}")
+print(f"DEBUG CONFIG: PINECONE_ENVIRONMENT = {repr(config.PINECONE_ENVIRONMENT)}")
+print(f"DEBUG CONFIG: NAMESPACE = {repr(config.NAMESPACE)}")
+print(f"DEBUG CONFIG: DEBUG_MODE = {repr(config.DEBUG_MODE)}")
+print("--- FINISHED CONFIGURATION DEBUG ---")
+sys.stdout.flush() # Try to force output flushing
+
+# === VALIDATE CONFIGURATION (Keep these checks) ===
 if not config.PINECONE_API_KEY:
     raise ValueError("Pinecone API Key not found. Please set the PINECONE_API_KEY environment variable.")
 if not config.OPENAI_API_KEY:
     raise ValueError("OpenAI API Key not found. Please set the OPENAI_API_KEY environment variable.")
+# Add check for index name based on what we expect
+if not config.INDEX_NAME or not isinstance(config.INDEX_NAME, str):
+     raise ValueError(f"Pinecone Index Name is invalid or empty: {repr(config.INDEX_NAME)}. Check config.py and environment variables.")
 
 # === FLASK APP & EXTENSIONS ===
 app = Flask(__name__)
 CORS(app) # Enable CORS for all routes
 
 # === INITIALIZE EXTERNAL SERVICES ===
+# This block will now run AFTER the debug prints
 try:
-    # Initialize Pinecone client (once)
+    print("Attempting to initialize Pinecone client...") # Added log
     pc = Pinecone(api_key=config.PINECONE_API_KEY)
 
-    # Check if index exists
-    if config.INDEX_NAME not in [idx.name for idx in pc.list_indexes().indexes]:
-         raise ValueError(f"Pinecone index '{config.INDEX_NAME}' not found.")
+    print(f"Attempting to list indexes to check for '{config.INDEX_NAME}'...") # Added log
+    index_list = pc.list_indexes()
+    index_names = [index_info.name for index_info in index_list.indexes]
+    print(f"Found indexes: {index_names}") # Added log
 
-    # Get index object (once)
+    if config.INDEX_NAME not in index_names:
+         # Raise error using the value we logged earlier for clarity
+         raise ValueError(f"Pinecone index '{config.INDEX_NAME}' (type: {type(config.INDEX_NAME).__name__}) not found in available indexes: {index_names}")
+
+    print(f"Attempting to connect to index '{config.INDEX_NAME}'...") # Added log
     pinecone_index = pc.Index(config.INDEX_NAME)
     print(f"Successfully connected to Pinecone index '{config.INDEX_NAME}'.")
-    # Optionally print stats on startup
-    # print(pinecone_index.describe_index_stats())
-
-    # OpenAI client is initialized within embedder.py in this example
 
 except Exception as e:
-    # Log error appropriately
     print(f"ERROR: Failed to initialize external services: {e}")
-    # Depending on severity, might want to exit or prevent app from starting fully
-    pinecone_index = None # Ensure index is None if connection failed
+    pinecone_index = None
 
 
-# === API ENDPOINTS ===
+# === API ENDPOINTS (Keep as before) ===
 @app.route('/health', methods=['GET'])
 def health_check():
     """Basic health check endpoint."""
-    # Add more checks if needed (e.g., Pinecone connection status)
     if pinecone_index is None:
          return jsonify({"status": "error", "message": "Pinecone connection failed"}), 503
     return jsonify({"status": "ok"})
 
 @app.route("/rag/query", methods=["POST"])
 def rag_query_endpoint():
-    """
-    Receives a query text, generates embedding, queries Pinecone,
-    and returns relevant results.
-    """
+    """Receives query, embeds, queries Pinecone, returns results."""
     if pinecone_index is None:
          return jsonify({"error": "Pinecone service unavailable"}), 503
 
@@ -69,36 +83,32 @@ def rag_query_endpoint():
     print(f"Received query: {query_text[:100]}...") # Log received query (truncated)
 
     try:
-        # 1. Generate embedding for the query text
         print("Generating embedding...")
         query_vector = generate_embedding(query_text)
         if not query_vector:
-             # Handle case where embedding failed silently in the util function
              return jsonify({"error": "Failed to generate query embedding"}), 500
         print(f"Embedding generated (dim: {len(query_vector)})")
 
-        # 2. Query Pinecone using the retriever utility
         print("Querying Pinecone...")
+        # Make sure ApiException is imported if you want this specific except block
         results = query_pinecone(pinecone_index, query_vector)
         print(f"Retrieved {len(results)} results.")
 
-        # 3. Return the results
         return jsonify({"results": results})
 
-    except openai.APIError as e: # Be specific about potential errors
+    except openai.APIError as e:
         print(f"OpenAI API Error: {e}")
         return jsonify({"error": f"OpenAI API Error: {e}"}), 500
-    except Exception as e: # Catch-all for other unexpected errors
-        # Log the full error for debugging
+    except ApiException as e: # Make sure ApiException is imported
+        print(f"Pinecone API Error: {e}")
+        return jsonify({"error": f"Pinecone API Error: {e}"}), 500
+    except Exception as e:
         print(f"Unexpected error processing query: {e}")
-        # Return a generic error message to the client
         return jsonify({"error": "An internal server error occurred"}), 500
 
 
-# === MAIN EXECUTION ===
+# === MAIN EXECUTION (Keep as before) ===
 if __name__ == "__main__":
-    # Get host and port from environment variables or use defaults
     host = os.getenv("FLASK_RUN_HOST", "0.0.0.0")
     port = int(os.getenv("FLASK_RUN_PORT", 5050))
-    # Use debug mode from config
     app.run(host=host, port=port, debug=config.DEBUG_MODE)
